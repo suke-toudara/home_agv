@@ -1,0 +1,87 @@
+<!-- 以下を参考にnav2のプラグインを作成-->
+<!-- https://navigation.ros.org/configuration/packages/configuring-bt-xml.html -->
+
+<root main_tree_to_execute="MainTree">
+    <BehaviorTree ID="MainTree">
+      <!-- recover nodeは１つ目の子が失敗したときに２つ目を実行する -->
+      <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+        <PipelineSequence name="NavigateWithReplanning">
+          <!-- コントローラーを選択 -->
+          <ControllerSelector selected_controller="{selected_controller}" default_controller="FollowPath" topic_name="controller_selector"/>
+          <!-- プランナーを選択　-->
+          <PlannerSelector selected_planner="{selected_planner}" default_planner="GridBased" topic_name="planner_selector"/>
+          <!-- 多くの無駄なリクエストで計画サーバーをフラッディングするのを防ぐ -->
+          <RateController hz="1.0">
+            <RecoveryNode number_of_retries="1" name="ComputePathToPose">
+              <!-- -->
+              <RemovePassedGoals input_goals="{goals}" output_goals="{goals}" radius="0.7"/>
+              <!-- パスの計算 -->
+              <ComputePathToPose goal="{goal}" path="{path}" planner_id="{selected_planner}" error_code_id="{compute_path_error_code}"/>
+              <!-- ComputePathThroughPosesノードを使うと、中間の通過点(poses)も指定できます。 -->
+              <!-- <ComputePathThroughPoses goals="{goals}" path="{path}" planner_id="{selected_planner}" error_code_id="{compute_path_error_code}"/> -->
+              
+              <!-- smoother使うならこれに書き換え-->
+              <!-- <Sequence name="ComputeAndSmoothPath">
+                <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased" error_code_id="{compute_path_error_code}"/>
+                <SmoothPath unsmoothed_path="{path}" smoothed_path="{path}" error_code_id="{smoother_error_code}"/>
+              </Sequence> -->
+
+              <Sequence>
+                <!-- -->
+                <WouldAPlannerRecoveryHelp error_code="{compute_path_error_code}"/>
+                <!--　ローカルコストマップとグローバルコストマップの両方をクリア -->
+                <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
+              </Sequence>
+
+              <!-- <Sequence name= "TryToResolveSmootherErrorCodes">
+                <WouldASmootherRecoveryHelp error_code="{smoother_error_code}">
+                < recovery to resolve smoother error code goes here >
+              <Sequence/> -->
+
+            </RecoveryNode>
+          </RateController>
+          
+          <RecoveryNode number_of_retries="1" name="FollowPath">
+            <FollowPath path="{path}" controller_id="{selected_controller}" error_code_id="{follow_path_error_code}"/>
+            <!-- PathLongerOnApproach path="{path}" prox_len="3.0" length_factor="2.0"　-->
+              <!-- <RetryUntilSuccessful num_attempts="1">
+                <SequenceStar name="CancelingControlAndWait">
+                  <CancelControl name="ControlCancel"/>
+                  <Wait wait_duration="5.0"/>
+                </SequenceStar>
+              </RetryUntilSuccessful>
+            </PathLongerOnApproach> -->
+            <Sequence>
+              <WouldAControllerRecoveryHelp error_code="{follow_path_error_code}"/>
+              <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+            </Sequence>
+          </RecoveryNode>
+        </PipelineSequence>
+
+        <Sequence>
+          <Fallback>
+            <WouldAControllerRecoveryHelp error_code="{follow_path_error_code}"/>
+            <WouldAPlannerRecoveryHelp error_code="{compute_path_error_code}"/>
+          </Fallback>
+          <ReactiveFallback name="RecoveryFallback">
+            <GoalUpdated/>
+            <RoundRobin name="RecoveryActions">
+              <!-- 順に実行 -->
+              <Sequence name="ClearingActions">
+                <!-- コストマップクリア-->
+                <ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
+                <ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
+              </Sequence>
+              <!-- 回転 -->
+              <Spin spin_dist="1.57" error_code_id="{spin_error_code}"/>
+              <!-- 回転 -->
+              <Wait wait_duration="5.0"/>
+              <!-- 後退 -->
+              <BackUp backup_dist="0.30" backup_speed="0.05" error_code_id="{backup_code_id}"/>
+            </RoundRobin>
+          </ReactiveFallback>
+        </Sequence>
+        
+      </RecoveryNode>
+    </BehaviorTree>
+  </root>

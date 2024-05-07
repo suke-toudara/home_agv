@@ -1,0 +1,6 @@
+/**:
+  ros__parameters:
+    # segmentation_topic : /SegmentationInfo
+    # camera_info_topic : /wamv/sensors/cameras/ball_shooter_camera_sensor/camera_info
+    # point_cloud_topic : /wamv/sensors/lidars/lidar_wamv_sensor/points
+  

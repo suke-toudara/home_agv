@@ -1,0 +1,1005 @@
+##########################################################################
+# Nav2
+# -------------------------------------------
+# github　　: https://github.com/ros-planning/navigation2
+# 公式サイト : https://navigation.ros.org/
+##########################################################################
+
+##########################################################################
+# 使用できるプラグイン
+# 
+# Behavior-Tree Navigator :
+# Costmap2D : 
+#
+#
+#
+##########################################################################
+
+
+"""
+amcl 
+2D レーザー スキャナーを使用して、指定された既知のマップ内のロボットの位置と方向 (つまりポーズ) を推定する確率的位置推定モジュール
+github : https://github.com/ros-planning/navigation2/tree/main/nav2_amcl
+param  : https://navigation.ros.org/configuration/packages/configuring-amcl.html
+
+"""
+
+amcl:
+  ros__parameters:
+    use_sim_time: True                                # シミュレーション時間を使用するかどうか
+    alpha1: 0.2                                       # ロボットの動きの回転成分から、オドメトリの回転推定で予想されるノイズを指定します。
+    alpha2: 0.2                                       # ロボットの動きの並進成分から、オドメトリの回転推定で予想されるノイズを指定します。
+    alpha3: 0.2                                       # ロボットの動きの並進コンポーネントから、オドメトリの並進推定で予想されるノイズを指定します。
+    alpha4: 0.2                                       # ロボットの動きの回転成分から、オドメトリの並進推定で予想されるノイズを指定します。
+    #alpha5: 0.2                                      # 平行移動関連のノイズ パラメータ (モデルが"omni"(オムニホイール)の場合のみ使用)。
+    base_frame_id: "base_footprint"                   # ロボットベースフレーム
+    beam_skip_distance: 1.5                           # 位置しないビームを無視する最大距離(m)
+    beam_skip_error_threshold: 0.9                    # 位置推定が収束しない場合の一致しないビームの割合
+    beam_skip_threshold: 0.3                          # sスキップに必要なビームのパーセンテージ
+    do_beamskip: false                                # ビームスキップを行うかどうか
+    global_frame_id: "map"                            # amcl で発行されるトピック名称
+    lambda_short: 0.1
+    laser_likelihood_max_dist: 2.0                    # map 上で障害物を観測する最大距離(障害物のサイズ?)
+    laser_max_range: 100.0                            # 最大スキャン範囲
+    laser_min_range: -1.0                             # 最小スキャン範囲、-1でURDFより引用？
+    laser_model_type: "likelihood_field"              # beam, likelihood_field, or likelihood_field_prob
+    set_initial_pose: False                           # ロボットの初期姿勢を .yaml で指定するかどうか
+    initial_pose: {x: 0.0, y: 0.0, z: 0.0, yaw: 0.0}  # 初期姿勢
+    max_beams: 60                                     # フィルタ更新時の使用するビームの数
+    max_particles: 2000                               # パーティクルの最大許容数
+    min_particles: 500                                # 最小許容数
+    odom_frame_id: "odom"                             # オドメトリトピック
+    pf_err: 0.05                                      # パーティクルフィルタのエラー値
+    pf_z: 0.99                                        # パーティクルフィルタの密度
+    recovery_alpha_fast: 0.0                          # リカバリタイミングを決める？
+    recovery_alpha_slow: 0.0                          # リカバリタイミングを決める？
+    resample_interval: 1                              # リカバリタイミングを決める？
+    robot_model_type: "differential"                  # galacticはnav2_amcl::DifferentialMotionModel or nav2_amcl::OmniMotionModel
+    save_pose_rate: 0.5                               # 最後に推定されたポーズを保存する周期(Hz)、初期化時に呼び出し
+    sigma_hit: 0.2                                    # ガウス モデルの標準偏差
+    tf_broadcast: true                                # map - odom 間の変換を行うかどうか
+    transform_tolerance: 1.0                          # 変換したタイムスタンプを更新する間隔(s)
+    update_min_a: 0.2                                 # フィルタ更新時の最小回転運動量
+    update_min_d: 0.25                                # フィルタ更新時の最小並進運動量
+    z_hit: 0.5                                        # 重み
+    z_max: 0.05                                       # 重み
+    z_rand: 0.5                                       # 重み
+    z_short: 0.05                                     # 重み
+    scan_topic: scan                                  # サブスクライブするスキャントピック
+
+amcl_map_client:
+  ros__parameters:
+    use_sim_time: True                                # シミュレーション時間を使用するかどうか
+
+amcl_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True                                # シミュレーション時間を使用するかどうか
+
+#############################################################################################
+# Behavior-Tree Navigator
+# ナビゲーション タスクの柔軟性を可能にし、回復を含む複雑なロボットの動作を簡単に指定する方法を提供することを目的としたナビゲーションの動作ツリーベースの実装
+# github : https://github.com/ros-planning/navigation2/tree/main/nav2_bt_navigator
+#############################################################################################
+bt_navigator:
+  ros__parameters:
+    use_sim_time: True                                                  # シミュレーション時間を使用するかどうか
+    global_frame: map                                                   # 参照するマップトピック
+    robot_base_frame: base_link                                         # btの対象フレーム
+    odom_topic: odom                                                    # オドメトリが公開されるトピック
+    transform_tolerance: 0.1                                            # TF変換許容値
+    
+    always_reload_bt_xml: false                                         # 現在アクティブなXML の名前に関係なく、要求されたビヘイビアーツリーXML記述を常にロードします。
+    bt_loop_duration: 10                                                # BT実行の各反復の継続時間 (ミリ秒単位)
+    default_server_timeout: 20                                          # BTアクションノードがアクションサーバーからの確認応答を待機している間のデフォルトのタイムアウト値(ミリ秒単位)
+    wait_for_service_timeout: 1000                                      # アクションまたはサービスBTノードがBT初期化時にサービスまたはアクションサーバーからの確認応答を待機する間のデフォルトのタイムアウト
+    action_server_result_timeout: 900.0                                 # 結果が生成されなかった場合にアクションサーバーがゴールハンドルを破棄するタイムアウト値 (秒単位)
+    
+    goals_blackboard_id: goal                                           # フィードバック用のビヘイビア ツリーからパスを取得するためのブラックボード変数,BT XMLファイルのポートと一致する必要がある
+    path_blackboard_id: path                                            # ビヘイビアーツリーに目標を提供するために使用するブラックボード変数,BT XMLファイルのポートと一致する必要がある
+    
+    default_nav_to_pose_bt_xml: replace/with/path/to/bt.xml             # NavigateToPoseのデフォルトのビヘイビアツリーXML記述パスの指定　or $(find-pkg-share my_package)/behavior_tree/my_nav_to_pose_bt.xml
+    default_nav_through_poses_bt_xml: replace/with/path/to/bt.xml       # NavigateThroughPosesのデフォルトのビヘイビアツリーXML記述パスの指定  or $(find-pkg-share my_package)/behavior_tree/my_nav_through_poses_bt.xml
+                                                                        # Galacticまで : default_bt_xml_filename →　default_nav_to_pose_bt_xml(変更)
+                                                                        # NavigateThroughPosesはGalacticから追加
+
+    navigators: ['navigate_to_pose', 'navigate_through_poses']          # Ironから実装
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator::NavigateToPoseNavigator"              # In Iron and older versions, "/" was used instead of "::"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"        # In Iron and older versions, "/" was used instead of "::"
+ 
+    # enable_groot_monitoring: True                                       # groot を使用して Rviz2 上へ可視化するかどうか
+    # groot_zmq_publisher_port: 1666                                      # groot 用ポート
+    # groot_zmq_server_port: 1667                                         # groot 用ポート
+    # default_bt_xml_filename: "navigate_w_replanning_and_recovery.xml"   # デフォルトのファイルを使用します。
+
+    plugin_lib_names:                                                     # bt_navigator で使用するノードライブラリ
+      - nav2_compute_path_to_pose_action_bt_node
+      - nav2_follow_path_action_bt_node
+      - nav2_back_up_action_bt_node
+      - nav2_spin_action_bt_node
+      - nav2_wait_action_bt_node
+      - nav2_clear_costmap_service_bt_node
+      - nav2_is_stuck_condition_bt_node
+      - nav2_goal_reached_condition_bt_node
+      - nav2_goal_updated_condition_bt_node
+      - nav2_initial_pose_received_condition_bt_node
+      - nav2_reinitialize_global_localization_service_bt_node
+      - nav2_rate_controller_bt_node
+      - nav2_distance_controller_bt_node
+      - nav2_speed_controller_bt_node
+      - nav2_truncate_path_action_bt_node
+      - nav2_goal_updater_node_bt_node
+      - nav2_recovery_node_bt_node
+      - nav2_pipeline_sequence_bt_node
+      - nav2_round_robin_node_bt_node
+      - nav2_transform_available_condition_bt_node
+      - nav2_time_expired_condition_bt_node
+      - nav2_distance_traveled_condition_bt_node
+    error_code_names:                                                     # 比較するエラー コードのリスト
+      - compute_path_error_code
+      - follow_path_error_code
+      # - smoother_error_code, navigate_to_pose_error_code, navigate_through_poses_error_code, etc
+
+bt_navigator_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True                              # シミュレーション時間を使用するかどうか
+
+#############################################################################################
+# lifecycle_manager
+# Lifecycle Manager モジュールは、スタックのライフサイクル遷移状態を決定論的な方法で処理するメソッド
+# 順序付けられた一連のノードを取り込んで、スタックを実行するための構成状態とアクティブ化状態に 1 つずつ移行します
+# github : 
+#############################################################################################
+lifecycle_manager:
+  ros__parameters:
+    autostart: true                                                                                               # 起動時にノードをアクティブ状態に移行するかどうか
+    node_names: ['controller_server', 'planner_server', 'behavior_server', 'bt_navigator', 'waypoint_follower']   # ライフサイクル遷移を通じて表示されるノード名の順序付きリスト。
+    bond_timeout: 4.0                                                                                             # サーバーが応答しない場合に、このマネージャーのすべてのライフサイクル ノードに移行するまでのタイムアウト (秒単位)
+    attempt_respawn_reconnection: true                                                                            # クラッシュしたノードを再作成するか？
+    bond_respawn_max_duration: 10.0                                                                               # サーバーがクラッシュしたり応答しなくなったりすると、ライフサイクル マネージャーは安全のためにすべてのノードを停止します
+                                                                                                                  # ライフサイクル マネージャーがシステムの回復と再アクティブ化中に障害が発生したサーバーへの再接続を試行する期間
+
+
+#############################################################################################
+# planner_server
+# 目標地点へ到達したかどうか、目標地点との差分を管理するプラグイン
+# github : https://github.com/ros-planning/navigation2/tree/main/nav2_planner
+#############################################################################################
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 20.0                # プランナーの予想頻度,現在の周波数が予想される周波数よりも低い場合は、警告メッセージが表示される                
+    action_server_result_timeout: 10.0              # 結果が生成されなかった場合にアクション サーバーがゴール ハンドルを破棄するタイムアウト値 (秒単位)
+    planner_plugins: ["GridBased"]                  # パラメータおよび処理リクエスト用にマップされたプラグイン名のリスト
+    
+    # Navfnプランナーを使う場合
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+      tolerance: 0.5                                # 要求されたゴール ポーズとパスの終点の間の許容差 (メートル単位)
+      use_astar: false                              # A* を使用するかどうか。 false の場合、ダイクストラ展開が使用されます
+      allow_unknown: true                           # 未知の空間での企画を許可するかどうか
+      use_final_approach_orientation: false         # true の場合、プランナーによって生成されたパスの最後のポーズの方向はアプローチ方向、つまりパスの最後の 2 点を結ぶベクトルの方向に設定されます
+
+    # Smac_2D_プランナーを使う場合
+    # GridBased:
+    #   plugin: "nav2_smac_planner::SmacPlanner2D" # In Iron and older versions, "/" was used instead of "::"
+    #   tolerance: 0.125                      # tolerance for planning if unable to reach exact pose, in meters
+    #   downsample_costmap: false             # whether or not to downsample the map
+    #   downsampling_factor: 1                # multiplier for the resolution of the costmap layer (e.g. 2 on a 5cm costmap would be 10cm)
+    #   allow_unknown: true                   # allow traveling in unknown space
+    #   max_iterations: 1000000               # maximum total iterations to search for before failing (in case unreachable), set to -1 to disable
+    #   max_on_approach_iterations: 1000      # maximum number of iterations to attempt to reach goal once in tolerance
+    #   max_planning_time: 2.0                # max time in s for planner to plan, smooth
+    #   cost_travel_multiplier: 2.0           # Cost multiplier to apply to search to steer away from high cost areas. Larger values will place in the center of aisles more exactly (if non-`FREE` cost potential field exists) but take slightly longer to compute. To optimize for speed, a value of 1.0 is reasonable. A reasonable tradeoff value is 2.0. A value of 0.0 effective disables steering away from obstacles and acts like a naive binary search A*.
+    #   use_final_approach_orientation: false # Whether to set the final path pose at the goal's orientation to the requested orientation (false) or in line with the approach angle so the robot doesn't rotate to heading (true)
+    #   smoother:
+    #     max_iterations: 1000
+    #     w_smooth: 0.3
+    #     w_data: 0.2
+    #     tolerance: 1.0e-10
+
+    # Smac_Hybrid-A*プランナーを使う場合
+    # GridBased:
+    #   plugin: "nav2_smac_planner::SmacPlannerHybrid" # In Iron and older versions, "/" was used instead of "::"
+    #   downsample_costmap: false           # whether or not to downsample the map
+    #   downsampling_factor: 1              # multiplier for the resolution of the costmap layer (e.g. 2 on a 5cm costmap would be 10cm)
+    #   tolerance: 0.25                     # dist-to-goal heuristic cost (distance) for valid tolerance endpoints if exact goal cannot be found.
+    #   allow_unknown: true                 # allow traveling in unknown space
+    #   max_iterations: 1000000             # maximum total iterations to search for before failing (in case unreachable), set to -1 to disable
+    #   max_on_approach_iterations: 1000    # Maximum number of iterations after within tolerances to continue to try to find exact solution
+    #   max_planning_time: 5.0              # max time in s for planner to plan, smooth
+    #   motion_model_for_search: "DUBIN"    # Hybrid-A* Dubin, Redds-Shepp
+    #   angle_quantization_bins: 72         # Number of angle bins for search
+    #   analytic_expansion_ratio: 3.5       # The ratio to attempt analytic expansions during search for final approach.
+    #   analytic_expansion_max_length: 3.0  # For Hybrid/Lattice nodes: The maximum length of the analytic expansion to be considered valid to prevent unsafe shortcutting
+    #   analytic_expansion_max_cost: 200.0  # The maximum single cost for any part of an analytic expansion to contain and be valid, except when necessary on approach to goal
+    #   analytic_expansion_max_cost_override: false  #  Whether or not to override the maximum cost setting if within critical distance to goal (ie probably required)
+    #   minimum_turning_radius: 0.40        # minimum turning radius in m of path / vehicle
+    #   reverse_penalty: 2.0                # Penalty to apply if motion is reversing, must be => 1
+    #   change_penalty: 0.0                 # Penalty to apply if motion is changing directions (L to R), must be >= 0
+    #   non_straight_penalty: 1.2           # Penalty to apply if motion is non-straight, must be => 1
+    #   cost_penalty: 2.0                   # Penalty to apply to higher cost areas when adding into the obstacle map dynamic programming distance expansion heuristic. This drives the robot more towards the center of passages. A value between 1.3 - 3.5 is reasonable.
+    #   retrospective_penalty: 0.015
+    #   lookup_table_size: 20.0             # Size of the dubin/reeds-sheep distance window to cache, in meters.
+    #   cache_obstacle_heuristic: false     # Cache the obstacle map dynamic programming distance expansion heuristic between subsiquent replannings of the same goal location. Dramatically speeds up replanning performance (40x) if costmap is largely static.
+    #   debug_visualizations: false         # For Hybrid nodes: Whether to publish expansions on the /expansions topic as an array of poses (the orientation has no meaning) and the path's footprints on the /planned_footprints topic. WARNING: heavy to compute and to display, for debug only as it degrades the performance.
+    #   use_quadratic_cost_penalty: False
+    #   downsample_obstacle_heuristic: True
+    #   allow_primitive_interpolation: False
+    #   smooth_path: True                   # If true, does a simple and quick smoothing post-processing to the path
+    #   smoother:
+    #     max_iterations: 1000
+    #     w_smooth: 0.3
+    #     w_data: 0.2
+    #     tolerance: 1.0e-10
+    #     do_refinement: true
+    #     refinement_num: 2
+ 
+    # Smac状態格子プランナーを使う場合
+    # GridBased:
+    #       plugin: "nav2_smac_planner::SmacPlannerLattice" # In Iron and older versions, "/" was used instead of "::"
+    #       allow_unknown: true                 # Allow traveling in unknown space
+    #       tolerance: 0.25                     # dist-to-goal heuristic cost (distance) for valid tolerance endpoints if exact goal cannot be found.
+    #       max_iterations: 1000000             # Maximum total iterations to search for before failing (in case unreachable), set to -1 to disable
+    #       max_on_approach_iterations: 1000    # Maximum number of iterations after within tolerances to continue to try to find exact solution
+    #       max_planning_time: 5.0              # Max time in s for planner to plan, smooth
+    #       analytic_expansion_ratio: 3.5       # The ratio to attempt analytic expansions during search for final approach.
+    #       analytic_expansion_max_length: 3.0  # For Hybrid/Lattice nodes The maximum length of the analytic expansion to be considered valid to prevent unsafe shortcutting
+    #       analytic_expansion_max_cost: 200.0  # The maximum single cost for any part of an analytic expansion to contain and be valid, except when necessary on approach to goal
+    #       analytic_expansion_max_cost_override: false  #  Whether or not to override the maximum cost setting if within critical distance to goal (ie probably required)
+    #       reverse_penalty: 2.0                # Penalty to apply if motion is reversing, must be => 1
+    #       change_penalty: 0.05                # Penalty to apply if motion is changing directions (L to R), must be >= 0
+    #       non_straight_penalty: 1.05          # Penalty to apply if motion is non-straight, must be => 1
+    #       cost_penalty: 2.0                   # Penalty to apply to higher cost areas when adding into the obstacle map dynamic programming distance expansion heuristic. This drives the robot more towards the center of passages. A value between 1.3 - 3.5 is reasonable.
+    #       rotation_penalty: 5.0               # Penalty to apply to in-place rotations, if minimum control set contains them
+    #       retrospective_penalty: 0.015
+    #       lattice_filepath: ""                # The filepath to the state lattice graph
+    #       lookup_table_size: 20.0             # Size of the dubin/reeds-sheep distance window to cache, in meters.
+    #       cache_obstacle_heuristic: false     # Cache the obstacle map dynamic programming distance expansion heuristic between subsiquent replannings of the same goal location. Dramatically speeds up replanning performance (40x) if costmap is largely static.
+    #       allow_reverse_expansion: false      # If true, allows the robot to use the primitives to expand in the mirrored opposite direction of the current robot's orientation (to reverse).
+    #       smooth_path: True                   # If true, does a simple and quick smoothing post-processing to the path
+    #       smoother:
+    #         max_iterations: 1000
+    #         w_smooth: 0.3
+    #         w_data: 0.2
+    #         tolerance: 1.0e-10
+    #         do_refinement: true
+    #         refinement_num: 2
+
+    # Theta Star Plannerを使う場合
+    # GridBased:
+    #   plugin: "nav2_theta_star_planner::ThetaStarPlanner" # In Iron and older versions, "/" was used instead of "::"
+    #   how_many_corners: 8
+    #   w_euc_cost: 1.0
+    #   w_traversal_cost: 2.0
+    #   w_heuristic_cost: 1.0
+
+planner_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True
+
+recoveries_server:
+  ros__parameters:
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    recovery_plugins: ["spin", "back_up", "wait"]
+    spin:
+      plugin: "nav2_recoveries/Spin"
+    back_up:
+      plugin: "nav2_recoveries/BackUp"
+    wait:
+      plugin: "nav2_recoveries/Wait"
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_timeout: 0.1
+    use_sim_time: true
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 1.0
+    min_rotational_vel: 0.4
+    rotational_acc_lim: 3.2
+
+#############################################################################################
+# controller_server
+# 目標地点へ到達したかどうか、目標地点との差分を管理するプラグイン
+# github : 
+#############################################################################################
+controller_server:
+  ros__parameters:
+    use_sim_time: True                            # シミュレーション時間を使用するかどうか
+    controller_frequency: 20.0                    # コントローラの実行周期(Hz)
+    min_x_velocity_threshold: 0.001               # x方向0.001m/s以下のオドメトリ指令を無視
+    min_y_velocity_threshold: 0.5                 # y方向0.5m/s以下のオドメトリ指令を無視
+    min_theta_velocity_threshold: 0.001           # 回転角速度0.001rad/s以下の指令を無視
+    progress_checker_plugin: "progress_checker"   # デフォルトのプラグイン
+    goal_checker_plugin: "goal_checker"           # デフォルトのプラグイン
+    controller_plugins: ["FollowPath"]            # デフォルトのプラグイン
+
+    # Progress checker parameters
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5               # 0.5mより近いゴール位置を無視
+      movement_time_allowance: 10.0               # ロボットが最小半径を移動するのに要する時間
+    # Goal checker parameters
+    goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.25                     # ゴール判定の許容基準 
+      yaw_goal_tolerance: 0.25                    # ゴール判定の許容基準 
+      stateful: True                              # 目標向きに回転後、xy位置を再判定するかどうか
+    # DWB parameters
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: True              # デバッグ用の軌跡を出力するかどうか    
+      min_vel_x: 0.0                              # x最小速度m/s
+      min_vel_y: 0.0                              # y最小速度m/s
+      max_vel_x: 0.52                             # x最大速度m/s
+      max_vel_y: 0.0                              # y最大速度m/s
+      max_vel_theta: 1.0                          # 最大角速度 rad/s
+      min_speed_xy: 0.0                           # 最小並進速度m/s
+      max_speed_xy: 0.26                          # 最大並進速度m/s
+      min_speed_theta: 0.0                        # 最小角速度 rad/s
+      # Add high threshold velocity for turtlebot 3 issue.
+      # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
+      acc_lim_x: 2.5                                    # x最大加速度m/s^2
+      acc_lim_y: 0.0                                    # y最大加速度m/s^2
+      acc_lim_theta: 3.2                                # 回転最大加速度rad/s^2
+      decel_lim_x: -2.5                                 # x最大減速度m/s^2
+      decel_lim_y: 0.0                                  # x最大減速度m/s^2
+      decel_lim_theta: -3.2                             # 回転最大減速度rad/s^2
+      vx_samples: 20                                    # x方向の速度サンプル数
+      vy_samples: 5                                     # y方向の速度サンプル数
+      vtheta_samples: 20                                # 角度方向の速度サンプル数
+      sim_time: 1.7                                     # 1.7s 先をシミュレート
+      linear_granularity: 0.05                          # 投影する前方の直線距離(m)
+      angular_granularity: 0.025                        # 投影する角度距離
+      transform_tolerance: 0.2                          # tf変換の許容値
+      xy_goal_tolerance: 0.25                           # ゴール判定の許容基準
+      trans_stopped_velocity: 0.25
+      short_circuit_trajectory_evaluation: True         # 最高スコアのルートで固定
+      stateful: True
+      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
+      BaseObstacle.scale: 0.02                # BaseObstacle で判別する重み
+      PathAlign.scale: 32.0                   # PathAlign で判別する重み
+      PathAlign.forward_point_distance: 0.1   # 角度の変化を計算するために、ロボットの0.1m先を使用
+      GoalAlign.scale: 24.0                   # GoalAlign で判別する重み
+      GoalAlign.forward_point_distance: 0.1   # 角度の変化を計算するために、ロボットの0.1m先を使用
+      PathDist.scale: 32.0                    # PathDist で判別する重み
+      GoalDist.scale: 24.0                    # GoalDist で判別する重み
+      RotateToGoal.scale: 32.0                # RotateToGoal で判別する重み
+      RotateToGoal.slowing_factor: 5.0        # ゴールに向かって回転している間、ロボットの動作を遅くする重み
+      RotateToGoal.lookahead_time: -1.0       # >0 の場合、衝突を待つ時間
+
+    FollowPath:
+      plugin: nav2_graceful_controller::GracefulController             # Graceful Controller
+      transform_tolerance: 0.1                                         # TF 変換許容値 
+      motion_target_dist: 0.6                                          # motion_target ポイントを見つけるために使用する先読み距離
+      initial_rotation: true
+      initial_rotation_min_angle: 0.75
+      final_rotation: true
+      allow_backward: false
+      k_phi: 3.0
+      k_delta: 2.0
+      beta: 0.4
+      lambda: 2.0
+      v_linear_min: 0.1
+      v_linear_max: 1.0
+      v_angular_max: 5.0
+      slowdown_radius: 1.5
+
+    # FollowPath:
+    #   plugin: "nav2_rotation_shim_controller::RotationShimController"   # 回転シムコントローラー
+    #   angular_dist_threshold: 0.785                                     # 回転をトリガーする方向のパスから内側までの最大角距離 (ラジアン単位)
+    #   forward_sampling_distance: 0.5                                    # パスの進行方向を近似するために使用するサンプリングポイントを選択するための、パスに沿った前方距離 (メートル単位)
+    #   rotate_to_heading_angular_vel: 1.8                                # 動作が実行されるときに、ロボットが進行方向に回転する角速度 (rad/s)
+    #   primary_controller : "dwb_core::DWBLocalPlanner"                  # 回転しないでいいときのプラグイン
+    #   max_angular_accel: 3.2                                            # 動作が実行されるときに、ロボットが進行方向に回転する角加速度 (rad/s/s)
+    #   simulate_ahead_time: 1.0                                          # 衝突をチェックするために回転コマンドを転送する時間 (秒)
+
+controller_server_rclcpp_node:
+  ros__parameters:
+    use_sim_time: True                          # シミュレーション時間を使用するかどうか
+
+
+#############################################################################################
+# local_costmap(ローカルコストマップ)
+# 
+# github : 
+#############################################################################################
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      always_send_full_costmap: True         # 更新ごとに完全なコストマップを送信するかどうか
+      footprint_padding: 0.01                # パッドの設置面積(m)に相当する量
+      #footprint: []
+      global_frame: odom                     # 参照フレーム
+      height: 3                              # コストマップの高さ(m)
+      width: 3                               # コストマップの幅 (m)
+      lethal_cost_threshold: 100             # 致命的な障害物とみなされる占有グリッド マップの最小コスト
+      map_topic: "map"                       # map_server または SLAM からのマップのトピック
+      origin_x : 0.0                         # コストマップのX原点
+      origin_y : 0.0                         # コストマップのY原点
+      publish_frequency: 1.0                 # コストマップをトピックに公開する頻度
+      resolution: 0.1                        # コストマップの 1 ピクセルの解像度 (メートル単位)
+      robot_base_frame: base_link            # ロボットのベースフレーム
+      robot_radius: 0.1                      # フットプリント座標が指定されていない場合に使用するロボットの半径
+      rolling_window: false                  # コストマップをロボットのベース フレームと一緒に回転させるかどうか
+      track_unknown_space: false             # falseの場合は不明なスペースを空きスペースとして扱い、それ以外の場合は不明なスペースとして扱います
+      transform_tolerance: 0.3               # TF変換許容値
+      initial_transform_timeout: 60.0        # ロボットのベース フレームからグローバル フレームへの変換が利用可能になるまで待機する時間です。これを超えると、動作中止されます。
+      trinary_costmap: true                  # 占有グリッド マップを 3 つの値 (空き、占有、不明) のみとして解釈するかどうか？それともその値として扱うか
+      unknown_cost_value: 255                # 未知のスペースを追跡する場合のコスト
+      update_frequency: 5.0                  # コストマップの更新頻度
+      use_maximum: false                     # コストマップを結合して最大コストを使用するかオーバーライドするか?
+
+      #costmapの参照センサ(sourse)
+      observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+
+      ###############################################
+      # Plugin
+      # ---------------------------------------------
+      # “static_layer”
+      # “inflation_layer”
+      # “obstacle_layer”
+      # "voxel_layer"
+      #
+      # "denoise_layer" 
+      ###############################################
+      #plugins: ["static_layer","inflation_layer","obstacle_layer","voxel_layer", "denoise_layer"]
+      plugins: ["static_layer"]
+      
+      ###############################################
+      # Costmap Filters
+      # ---------------------------------------------
+      # Keepout Filter 
+      # Speed Filter 
+      # Binary Filter 
+      ###############################################
+      #filters: ["keepout_filter","speed_filter","binary_filter"]
+      filters: ["keepout_filter"]
+      
+      # static_layer : SLAM またはmap_server(またはその他) からマップを取り込んでコストマップ
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"       # プラグイン
+        enabled: true                                # 有効かどうか
+        subscribe_to_updates: true                   # 最初に受信した後、静的地図の更新を購読します
+        map_subscribe_transient_local: True          # マップ トピックの QoS 設定
+        transform_tolerance : 0.0                    # TF耐性
+        #map_topic : []                              # サブスクライブするマップ トピック。空のままにした場合、マップトピックはデフォルトでcostmap_2d_rosのグローバルmap_topicパラメータになる
+
+      # inflation_layer : 障害物の周囲に指数関数的減衰関数を配置して、衝突近くを通過するコストを増加させる
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"       # プラグイン
+        enabled: true                                   # 有効かどうか
+        inflation_radius: 0.55                          # 致命的な障害物の周囲のコストマップを膨張させる半径
+        cost_scaling_factor: 1.0                        # 膨張半径全体にわたる指数関数的減衰係数
+        inflate_unknown: false                          # 未知のセルを致死的であるかのように膨張させるかどうか
+        inflate_around_unknown: true                    # 未知のセルを膨張させるかどうか
+
+      voxel_layer:
+        plugin: "nav2_costmap_2d::VoxelLayer"           # プラグイン
+        enabled: True                                   # プラグイン
+        footprint_clearing_enabled: true
+        max_obstacle_height: 2.0
+        publish_voxel_map: True
+        origin_z: 0.0
+        z_resolution: 0.05
+        z_voxels: 16
+        max_obstacle_height: 2.0
+        unknown_threshold: 15
+        mark_threshold: 0
+        observation_sources: pointcloud
+        combination_method: 1
+        pointcloud:  # no frame set, uses frame from message
+          topic: /intel_realsense_r200_depth/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        footprint_clearing_enabled: true
+        max_obstacle_height: 2.0
+        combination_method: 1
+        scan:
+          topic: /scan
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+          inf_is_valid: false
+
+      
+
+
+      # ボクセル レイヤーに似た別の3D認識プラグイン
+      # http://wiki.ros.org/pluginlib/
+      rgbd_obstacle_layer:
+        enabled:               true   # レイヤーを有効化するかどうか
+        voxel_decay:           20     # 秒数(線形の場合)または指数関数のn(指数関数の場合)
+        decay_model:           0      # 0=線形、1=指数関数、-1=永続
+        voxel_size:            0.05   # メートル単位のボクセルサイズ
+        track_unknown_space:   true   # デフォルトの空間は未知とする
+        observation_persistence: 0.0  # 秒単位の観測の持続時間
+        max_obstacle_height:   2.0    # メートル単位の最大障害物高さ
+        mark_threshold:        0      # ボクセル高さ
+        update_footprint_enabled: true # フットプリントの更新を有効化
+        combination_method:    1      # 1=最大値、0=上書き
+        obstacle_range:        3.0    # メートル単位の障害物範囲
+        origin_z:              0.0    # メートル単位のz軸原点
+        publish_voxel_map:     true   # デフォルトでオフ、ボクセルマップを公開
+        transform_tolerance:   0.2    # 秒単位の変換許容値
+        mapping_mode:          false  # デフォルトでオフ、ナビゲーション用ではなくマップを保存
+        map_save_duration:     60     # デフォルト60秒、自動保存の間隔
+        observation_sources:   rgbd1_clear rgbd1_mark # 観測ソース
+        rgbd1_mark:
+          data_type: PointCloud2      # データ型
+          topic: camera1/depth/points # トピック
+          marking: true               # マーキングを行う
+          clearing: false             # クリアリングは行わない
+          min_obstacle_height: 0.3    # メートル単位の最小障害物高さ
+          max_obstacle_height: 2.0    # メートル単位の最大障害物高さ  
+          expected_update_rate: 0.0   # この更新レートに満たない場合はバッファから削除
+          observation_persistence: 0.0 # 0=最新、それ以外は指定した時間内の全ての測定値を使用
+          inf_is_valid: false         # レーザスキャンの場合はfalse
+          clear_after_reading: true   # レイヤーが読み込んだ後にバッファをクリア
+          filter: "voxel"             # "voxel"、"passthrough"、またはフィルターなしを指定
+          voxel_min_points: 0         # ボクセルフィルターの最小ポイント数
+        rgbd1_clear:
+          enabled: true               # デフォルトでtrueだが、対応するサービス呼び出しで切り替え可能
+          data_type: PointCloud2
+          topic: camera1/depth/points
+          marking: false              # マーキングは行わない  
+          clearing: true              # クリアリングを行う
+          min_z: 0.1                  # メートル単位の最小z値
+          max_z: 7.0                  # メートル単位の最大z値
+          vertical_fov_angle: 0.7     # ラジアン単位の垂直視野角
+          horizontal_fov_angle: 1.04  # ラジアン単位の水平視野角
+          decay_acceleration: 1.      # 1/s^2、レーザスキャナの場合は0
+          model_type: 0               # 0=深度カメラ、1=3Dライダー
+          
+      # ノイズ除去
+      denoise_layer:
+        plugin: "nav2_costmap_2d::DenoiseLayer"       # ノイズ除去レイヤー
+        enabled: True                                 # 有効かどうか
+        minimal_group_size: 2                         # ノイズとして無視すべき隣接障害物の最小数
+        group_connectivity_type: 8                    # 4 or 8 (4 - 隣接する障害物は水平方向と垂直方向に接続されます,8 - 隣接する障害物は水平、垂直、斜めに接続されます)
+
+     
+      #keep_outゾーンの設定
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: "/costmap_filter_info"
+
+#############################################################################################
+# global_costmap
+# 
+# github : 
+#############################################################################################
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      use_sim_time: True
+      robot_radius: 0.22
+      resolution: 0.05
+      track_unknown_space: true
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      filters: ["keepout_filter","speed_filter"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.55
+      always_send_full_costmap: True
+
+      # ノイズ除去
+      denoise_layer:
+        plugin: "nav2_costmap_2d::DenoiseLayer"       # ノイズ除去レイヤー
+        enabled: True                                 # 有効かどうか
+        minimal_group_size: 2                         # ノイズとして無視すべき隣接障害物の最小数
+        group_connectivity_type: 8                    # 4 or 8 (4 - 隣接する障害物は水平方向と垂直方向に接続されます,8 - 隣接する障害物は水平、垂直、斜めに接続されます)
+
+
+      #keep_outゾーンの設定
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: "/costmap_filter_info"
+
+##############################################################################################################
+# waypoint_follower : ウェイポイント
+# NavigateToPoseアクションサーバーを使用してウェイポイント追跡
+##############################################################################################################
+waypoint_follower:
+  ros__parameters:
+    waypoint_task_executor_plugin: "wait_at_waypoint"    # 
+    stop_on_failure : true                               # 単一のウェイポイントが失敗した場合にアクション タスクを失敗させるかどうか
+    loop_rate : 20                                       # 現在のナビゲーション タスクの結果をチェックするためのレート
+    global_frame_id : "map"                              # robot_localization によって公開されたグローバル座標フレームの名前
+                                                         # GPS ウェイポイントをこのフレームに変換するために gps_waypoint_follower によってのみ使用される
+    #ロボットがウェイポイントに到着したときに実行されるタスクを定義するプラグイン
+    wait_at_waypoint:                                   
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"   # ロボットが各ウェイポイントに到達した後、指定された時間だけ一時停止
+      enabled: True                                      # プラグインが有効かどうか    
+      waypoint_pause_duration: 0                         # 各ウェイポイントに到達した後にロボットがスリープ/待機する時間 (ミリ秒単位)
+
+    #　他のプラグイン
+    # photo_at_waypoint :
+    #   plugin: "nav2_waypoint_follower::PhotoAtWaypoint"  # ウェイポイント到着時に写真を撮るランタイムプラグイン
+    #   enabled: True                                      # プラグインが有効かどうか    
+    #   camera_image_topic_name: “/camera/color/image_raw” # Camera image topic name to susbcribe
+    #   save_images_dir : "/tmp/waypoint_images"           # ウェイポイント到着時に撮影した写真を保存するディレクトリへのパス
+    #   image_format : png                                 # 希望の画像形式
+    
+    # input_at_way_point:                                   
+    #   plugin: "nav2_waypoint_follower::InputAtWaypoint"  # ロボットがウェイポイントでタイムアウト付きで外部入力を待機できるようにする
+    #   enabled: True                                      # プラグインが有効かどうか    
+    #   timeout: 10.0                                      # 次のウェイポイントに移動する前にユーザー入力を待機する時間 (秒)
+    #   input_topic: “input_at_waypoint/input”             # トピック入力は、 std_msgs/Empty内の次のウェイポイントに移動することを示すために公開される
+
+
+#######################################################################################
+# collision_monitor : 衝突監視モニター
+# https://navigation.ros.org/configuration/packages/collision_monitor/configuring-collision-monitor-node.html
+#######################################################################################
+collision_monitor:
+  ros__parameters:
+    base_frame_id: "base_footprint"                                      # ロボットのベースフレーム
+    odom_frame_id: "odom"                                                # オドメトリに使用するフレーム
+    cmd_vel_in_topic: "cmd_vel_smoothed"                                 # 受け取る速度トピック名(干渉チェック前)
+    cmd_vel_out_topic: "cmd_vel"                                         # 干渉チェック後の速度トピック名
+    state_topic: "collision_monitor_state"                               # 現在アクティブになっているポリゴンアクションのタイプと名前を出力する
+    transform_tolerance: 0.5                                             # 発行されるトランスフォームをポストデートする時間
+    source_timeout: 5.0                                                  # タイムアウト(ソースデータが有効であるとみなされる最大時間間隔。この間隔内に新しいデータを受信しない場合、ロボットは停止)
+    base_shift_correction: True                                          # 現在時刻と最新のソース時刻の差を考慮して、ソース データをベース フレームの動きに合わせて修正するかどうか
+    stop_pub_timeout: 2.0                                                # タイムアウト
+    enable_stamped_cmd_vel: False                                        # True : geometry_msgs::msg::TwistStamped False : geometry_msgs::msg::Twistを発行
+    use_realtime_priority: false                                         # スケジュール期限に間に合わせることでループレートの欠落が少なくなる
+    polygons: ["PolygonStop", "PolygonSlow", "FootprintApproach"]        # [追加する衝突ボックス] PolygonStop : 停止ボックス,PolygonSlow : 減速境界ボックス
+    # polygons: ["VelocityPolygonStop"]
+
+    PolygonStop:
+      type: "circle"                                                     # 多角形の形状のタイプ(ポリゴン or 円),ここは円を選択
+      radius: 0.3                                                        # 半径
+      # type: "polygon"                                                  # ポリゴンの場合
+      # points: "[[0.4, 0.3], [0.4, -0.3], [0.0, -0.3], [0.0, 0.3]]"     # 頂点(最低3点)
+      action_type: "stop"                                                # ゾーン動作モデル(stop or slow or downlimit or approach)
+      min_points: 4                                                      # 障害物を検出するためにポイントの最小数(この値を大きくすると、ノイズの影響を受けにくくなりますが、小さな障害物を見落とす可能性がある)
+      # polygon_sub_topic : "robot_polygon"                              # ポリゴンポイントをリッスンするトピック名(pointsと の両方polygon_sub_topicを指定した場合は、静的がpoints優先)
+      # footprint_topic : base_footprint                                 # ロボットの足跡をリッスンするトピック名(pointsと の両方footprint_topicを指定した場合は、静的がpoints優先)
+      # polygon_subscribe_transient_local ; false                        # 受信ポリゴンまたはフットプリントトピックサブスクリプションのQoS耐久性設定。
+      slowdown_ratio: 0.5                                                # ロボットの速度の低下割合(実際の速度の割合),limitアクションタイプに適用
+      linear_limit:  0.5                                                 # ロボットの直線速度制限,limitアクションタイプに適用
+      angular_limit:  0.5                                                # ロボットの角速度制限,limitアクションタイプに適用
+      time_before_collision: 2.0                                         # 衝突するまでの時間 (秒単位)。衝突予測に使用される最大シミュレーション時間。値が大きいほど、パフォーマンスが低下  
+      simulation_time_step: 0.1                                          # 衝突予測中のロボット動作シミュレーションの時間反復ステップ。値が大きいほど、予測精度は低いが、パフォーマンスは向上
+      visualize: True                                                    # ポリゴンを別のトピックで公開するか？
+      polygon_pub_topic: "polygon_stop"                                  # ポリゴンをパブリッシュするトピック名、visualizeのとき使用
+      enabled: True                                                      # このポリゴンを衝突監視に使用するかどうか
+    
+    PolygonSlow:                                                         
+      # type: "circle"                                                    
+      # radius: 0.3                                                      
+      type: "polygon"                                                    
+      points: "[[1.0, 1.0], [1.0, -1.0], [-0.5, -1.0], [-0.5, 1.0]]"     
+      action_type: "slowdown"                                             
+      min_points: 4                                                      
+      slowdown_ratio: 0.3                                                 
+      visualize: True                                                     
+      polygon_pub_topic: "polygon_slowdown"                               
+      enabled: True                                                      
+    
+    #  
+    PolygonLimit:                                                        
+      type: "polygon"                                                    
+      points: "[[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]]"      
+      action_type: "limit"                                                
+      min_points: 4                                                      
+      linear_limit: 0.4                                                   
+      angular_limit: 0.5                                                  
+      visualize: True                                                      
+      polygon_pub_topic: "polygon_limit"                                  
+      enabled: True                                                       
+
+    # 
+    FootprintApproach: 
+      type: "polygon"                                                     
+      action_type: "approach"                                             
+      footprint_topic: "/local_costmap/published_footprint"               
+      time_before_collision: 2.0                                          
+      simulation_time_step: 0.02                                          
+      min_points: 6                                                      
+      visualize: False                                                    
+      enabled: True                                                       
+    
+    # 速度に基づいてポリゴンを切り替えることができます
+    # たとえば、0.5 m/s で移動するときよりも 1.0 m/s で移動するときのほうがより大きな安全ゾーンを持つ
+    VelocityPolygonStop:
+      type: "velocity_polygon"                                           # 多角形の形状のタイプ
+      action_type: "stop"                                                # ゾーン動作モデル
+      min_points: 6                                                      # 障害物を検出するためにポイントの最小数 
+      visualize: True                                                    # ポリゴンを別のトピックで公開するか？
+      enabled: True                                                      # このポリゴンを衝突監視に使用するかどうか
+      polygon_pub_topic: "velocity_polygon_stop"                         # ポリゴンをパブリッシュするトピック名、visualizeのとき使用
+      velocity_polygons: ["rotation", "translation_forward", "translation_backward", "stopped"]  #ロボットの現在速度に基づいて切り替えるサブポリゴンのリスト 
+      holonomic: false                                                   # 衝突予測にホロノミックロボットモデルを使用するか
+      
+      rotation:           
+        points: "[[0.3, 0.3], [0.3, -0.3], [-0.3, -0.3], [-0.3, 0.3]]"   # 四つの頂点
+        linear_min: 0.0                                                  # 最大並進速度 
+        linear_max: 0.05                                                 # 最小並進速度   
+        theta_min: -1.0                                                  # 最大回転速度        
+        theta_max: 1.0                                                   # 最小回転速度
+        # direction_start_angle: 3.14                                    # 移動方向の開始角度(ホロミックロボットのみ)
+        # direction_end_angle: 3.14                                      # 移動方向の終了角度(ホロミックロボットのみ)                                     
+
+      # 以下同意
+      translation_forward:
+        points: "[[0.35, 0.3], [0.35, -0.3], [-0.2, -0.3], [-0.2, 0.3]]" 
+        linear_min: 0.0                                                   
+        linear_max: 1.0                                                   
+        theta_min: -1.0           
+        theta_max: 1.0            
+      
+      translation_backward:
+        points: "[[0.2, 0.3], [0.2, -0.3], [-0.35, -0.3], [-0.35, 0.3]]"          
+        linear_min: -1.0            
+        linear_max: 0.0            
+        theta_min: -1.0                      
+        theta_max: 1.0      
+
+      stopped:
+        points: "[[0.25, 0.25], [0.25, -0.25], [-0.25, -0.25], [-0.25, 0.25]]"            
+        linear_min: -1.0            
+        linear_max: 1.0           
+        theta_min: -1.0            
+        theta_max: 1.0            
+
+    # 衝突を監視するために、少なくとも1つのデータソースを追加
+    # 指定可能なセンサーは、以下になります。
+    # Laser scanners (sensor_msgs::msg::LaserScan messages)
+    # PointClouds (sensor_msgs::msg::PointCloud2 messages)
+    # IR/Sonars (sensor_msgs::msg::Range messages)
+    observation_sources: ["scan", "pointcloud"]                         # 監視するためのソース
+    scan:
+      type: "scan"                                                      # センサタイプ
+      topic: "/scan"                                                    # 受け取るトピック名
+      source_timeout: 0.2                                               # ソースデータを有効とする最大時間間隔
+      enabled: True                                                     # このソースを衝突監視に使用するかどうか
+
+    pointcloud:
+      type: "pointcloud"                                                # センサタイプ
+      topic: "/intel_realsense_r200_depth/points"                       # 受け取るトピック名 
+      source_timeout: 0.2                                               # ソースデータを有効とする最大時間間隔
+      enabled: True                                                     # このソースを衝突監視に使用するかどうか
+      min_height: 0.1                                                   # 見る最小高さ(pointcloudのみ)
+      max_height: 0.5                                                   # 見る最大高さ(pointcloudのみ)
+
+    # range:
+    #   type: "pointcloud"                                                # センサタイプ
+    #   topic: "/intel_realsense_r200_depth/points"                       # 受け取るトピック名 
+    #   source_timeout: 0.2                                               # ソースデータを有効とする最大時間間隔
+    #   obstacles_angle: 1                                                # 範囲円弧上の近くの障害物点間の角度増分
+    #   enabled : True                                                    # このソースを衝突監視に使用するかどうか
+
+#############################################################################################################################################
+# collision_detector : 衝突検出器
+# ironから追加冴された　: CollisionMonitorと似ていますが、停止や減速などを行うのではなく、検出した場合の、障害物が検出された場合、トピックを通じて通知が受け取れる 
+#############################################################################################################################################
+# collision_detector:
+#   ros__parameters:
+#     base_frame_id: "base_footprint"
+#     odom_frame_id: "odom"
+#     transform_tolerance: 0.5
+#     source_timeout: 5.0
+#     base_shift_correction: True
+#     polygons: ["PolygonFront"]
+#     PolygonFront:
+#       type: "polygon"
+#       points: "[[0.3, 0.3], [0.3, -0.3], [0.0, -0.3], [0.0, 0.3]]"
+#       action_type: "none"
+#       min_points: 4
+#       visualize: True
+#       polygon_pub_topic: "polygon_front"
+#     observation_sources: ["scan"]
+#     scan:
+#       source_timeout: 0.2
+#       type: "scan"
+#       topic: "scan"
+#       enabled: True
+#     pointcloud:
+#       type: "pointcloud"
+#       topic: "/intel_realsense_r200_depth/points"
+#       min_height: 0.1
+#       max_height: 0.5
+#       enabled: True
+
+
+#####################################################################################################################################
+# smoother
+# https://navigation.ros.org/tutorials/docs/adding_smoother.html
+# simple_smoother: https://github.com/ros-planning/navigation2/blob/main/nav2_smoother/src/simple_smoother.cpp
+# savitzky_golay_smoother : https://github.com/ros-planning/navigation2/blob/main/nav2_smoother/src/savitzky_golay_smoother.cpp
+# smooth_path : https://github.com/ros-planning/navigation2/tree/main/nav2_constrained_smoother
+
+# プラグインを使用するさいはBTに以下を追加　https://navigation.ros.org/tutorials/docs/adding_smoother.html
+#####################################################################################################################################
+
+smoother_server:
+  ros__parameters:
+    costmap_topic: global_costmap/costmap_raw                                # 衝突チェック用の生のコストマップトピック
+    footprint_topic: global_costmap/published_footprint                      # コストマップフレーム内のフットプリントのトピック
+    robot_base_frame: base_link                                              # ロボットのベースフレーム
+    transform_timeout: 0.1                                                   # TF 変換許容値
+    action_server_result_timeout : 10.0                                      # アクション サーバーがゴールハンドルを破棄するタイムアウト(秒)
+    # 使用するプラグインのリスト
+    # "simple_smoother"or "savitzky_golay_smoother" or "SmoothPath"
+    smoother_plugins: ["simple_smoother"] 
+    
+
+    # 入力パスを受け取り、シンプルで高速なスムージング手法を使用してそれを平滑化する Smoother Server
+    simple_smoother:
+      plugin: "nav2_smoother::SimpleSmoother"
+      tolerance: 1.0e-10                                                     # スムージングを終了するためのパス全体のパラメータ値
+      do_refinement: True                                                    # 品質をさらに向上させるために、平滑化されたパスを再帰的に平滑化するかどうか
+      refinement_num: 2                                                      # 再帰的に平滑化を試行する回数,>= 1でなければなりません。
+      max_its: 1000                                                          # 平滑化を試行する最大反復回数
+      w_data: 0.2                                                            # 指定されたパス データに適用する重み 
+      w_smooth: 0.3                                                          # パスを滑らかにするために適用するウェイト                
+    
+    savitzky_golay_smoother:
+      plugin: "nav2_smoother::SavitzkyGolaySmoother"                         # Savitzky Golay Filtersに基づくシンプルで高速なスムージング技術
+      do_refinement: True                                                    # 品質をさらに向上させるために、平滑化されたパスを再帰的に平滑化するかどうか
+      refinement_num: 2                                                      # セグメントを再帰的に平滑化する回数
+
+    #Ceresベースの大規模な最適化プログラムで、経路の長さ、滑らかさ、障害物からの距離、曲率を最適化する
+    SmoothPath:
+      plugin: "nav2_constrained_smoother/ConstrainedSmoother" # 使用するプラグイン名
+      reversing_enabled: true                                 # 経路の前進/後退方向とcuspsを検出するかどうか。方向が割り当てられていない経路の場合はfalseに設定する必要がある
+      path_downsampling_factor: 3                             # n個おきのノードのみを使用する。計算速度向上のため
+      path_upsampling_factor: 1                               # 0 - パスはダウンサンプリングされたまま、1 - パスは元の粒度に cubic bezier でアップサンプリングされる、2 以上 - より多くのアップサンプリング
+      keep_start_orientation: true                            # 開始方位がスムーズ化されないようにするかどうか
+      keep_goal_orientation: true                             # ゴール方位がスムーズ化されないようにするかどうか
+      minimum_turning_radius: 0.40                            # ロボットが実行可能な最小回転半径。0.0 に設定可能 (またはw_curveを0.0に設定して同じ効果)
+      w_curve: 30.0                                           # 最小回転半径を強制する重み
+      w_dist: 0.0                                             # 経路を元の経路に拘束する重み (コスト重みの代替)
+      w_smooth: 2000000.0                                     # 経路のスムーズ化を最大化する重み
+      w_cost: 0.015                                           # ロボットを衝突やコストから遠ざける重み
+
+      # 前進/後退の切り替え時 (cusps) での障害物回避を改善するためのパラメータ
+      w_cost_cusp_multiplier: 3.0                             # 前進/後退の切り替え時に、危険な回転を伴うことが多いため、より高いコスト重みを使用するオプション
+      cusp_zone_length: 2.5                                   # cusp 周辺のノードが w_cost_cusp_multiplier を使用するセクションの長さ (w_cost は cusp に向かってゾーン内で徐々に上昇し、cusp 点では w_cost * w_cost_cusp_multiplier になる)
+
+      # ロボット座標系でコストマップ値を取得する点のリスト。フォーマット: [x1, y1, weight1, x2, y2, weight2, ...]
+      # 注意: 経路を実際に改善するには、はるかに多くの反復回数が必要になります。本当に必要な場合のみコメントを外してください (非常に細長い/非対称のロボット)
+      # cost_check_points: [-0.185, 0.0, 1.0]
+
+      optimizer:
+        max_iterations: 70                                    # スムーザーの最大反復回数
+        debug_optimizer: false                                # デバッグ情報を出力するかどうか
+        gradient_tol: 5e3                                     # 勾配の許容値
+        fn_tol: 1.0e-15                                       # 関数の許容値
+        param_tol: 1.0e-20                                    # パラメータの許容値
+
+# Nav2によってロボットコントローラーに送信される速度を平滑化する
+velocity_smoother:
+  ros__parameters:
+    smoothing_frequency: 20.0            # 最後に受信した速度コマンドを使用して、速度、加速度、不感帯の制約によって平滑化する周波数
+    scale_velocities: false              # 加速度制限によるコンポーネントの必要な変化に比例して、速度の他のコンポーネントを調整するかどうか
+    feedback: "OPEN_LOOP"                # ロボットの速度の現在の状態に使用するフィードバックのタイ
+    max_velocity: [0.5, 0.0, 2.5]        # 軸の最大速度 (m/s) [x, y, theta]
+    min_velocity: [-0.5, 0.0, -2.5]      # 軸の最小速度 (m/s) これは符号付きであるため、反転するには負の値でなければなりません
+                                        # 回転速度の負の方向は右回転なので、逆転の優先順位に関係なく、常に負の値にする必要があります
+    deadband_velocity: [0.0, 0.0, 0.0]   # ハードウェアコントローラが損傷するのを防ぐために、ロボットが指定された低速を実現できない場合、代わりにこの最小限の速度が送信されます　(m/s)[x, y, theta]
+    velocity_timeout: 1.0                # パブリッシュを停止するまでのタイムアウト (秒)
+    max_accel: [2.5, 0.0, 3.2]           # 各軸に適用される最大加速度,[x, y, theta]
+    max_decel: [-2.5, 0.0, -3.2]         # 各軸に適用する最小加速度,通常はすべて負の値になります,[x, y, theta]
+    odom_topic: "odom"                   # CLOSED_LOOPの際、ロボットのオドメトリを検索するトピック
+    odom_duration: 0.1                   # CLOSED_LOOPの際、ロボットの速度を推定するためにオドメトリ コマンドをバッファする時間
+    use_realtime_priority: false         # リアルタイムの優先順位付けをコントローラーサーバーに追加,ループレートの欠落が少なくなる
+    enable_stamped_cmd_vel: false        # geometry_msgs::msg::Twist または geometry_msgs::msg::TwistStamped 速度データを使用するかどうか,True の場合は TwistStamped を使用、False の場合は Twist を使用
+    
+#######################################################################################
+# map_server
+# 
+# github : https://github.com/ros-planning/navigation2/tree/main/nav2_map_server 
+#######################################################################################
+map_server:
+  ros__parameters:
+    yaml_filename: "map.yaml"                      # マップyamlファイルへのパス
+    topic_name: "map"                              # ロードされたマップを公開するトピック
+    frame_id: "map"                                # ロードされたマップを公開するフレーム
+
+map_saver:
+  ros__parameters:
+    save_map_timeout: 5000                         # マップの保存を試みるタイムアウト (秒)
+    free_thresh_default: 0.25                      # 占有グリッドの空きスペースの最大確率しきい値
+    occupied_thresh_default: 0.65                  # 占有グリッドの占有スペースの最小確率しきい値
+    
+
+###################################################
+# 0: キープアウトゾーン/優先レーンフィルター
+# 1: 速度フィルター、速度制限は最大速度の % で指定されます
+# 2: 速度フィルター、速度制限は絶対値 (m/s) で指定されます
+# 3: バイナリフィルター
+###################################################
+costmap_filter_info_server:                        # コストマップフィルター
+  ros__parameters:                         
+    type: 1                                       # 使用されるコストマップ フィルターのタイプ
+    filter_info_topic: "/costmap_filter_info"     # コストマップフィルター情報を公開するトピック
+    mask_topic: "filter_mask"                     # フィルターマスクを公開するトピック
+    base: 0.0                                     # (OccupancyGrid)マスク値のベース
+    multiplier: 0.25                              # filter_space_value = base + multiplier * mask_value
+
+########################
+# # 速度フィルタを使う場合
+########################
+# # 有効にするときは https://navigation.ros.org/tutorials/docs/navigation2_with_keepout_filter.html にしたがって
+# costmap_filter_info_server:
+#   ros__parameters:
+#     use_sim_time: true
+#     type: 0
+#     filter_info_topic: "/costmap_filter_info"
+#     mask_topic: "/keepout_filter_mask"
+#     base: 0.0
+#     multiplier: 1.0
+# filter_mask_server:
+#   ros__parameters:
+#     use_sim_time: true
+#     frame_id: "map"
+#     topic_name: "/keepout_filter_mask"
+#     yaml_filename: "keepout_mask.yaml"
+
+########################
+# # 速度フィルタを使う場合
+########################
+# # 有効にするときは https://navigation.ros.org/tutorials/docs/navigation2_with_speed_filter.html にしたがって
+# costmap_filter_info_server:
+#   ros__parameters:
+#     use_sim_time: true
+#     type: 1
+#     filter_info_topic: "/costmap_filter_info"
+#     mask_topic: "/speed_filter_mask"
+#     base: 100.0                                   # スピートフィルタ(1)では速度％なので100からスタート(base)
+#     multiplier: -1.0
+# filter_mask_server:
+#   ros__parameters:
+#     use_sim_time: true
+#     frame_id: "map"
+#     topic_name: "/speed_filter_mask"
+#     yaml_filename: "speed_mask.yaml"

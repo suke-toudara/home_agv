@@ -1,0 +1,97 @@
+local_costmap:
+  local_costmap:
+    ros__parameters: 
+      update_frequency: 5.0                   # コストマップの更新周期
+      publish_frequency: 2.0                  # コストマップの発信周期
+      global_frame: odom                      # 参照フレーム
+      robot_base_frame: base_link             # ロボットのベースフレーム
+      use_sim_time: True                      # シミュレーション時間を使用するかどうか
+      rolling_window: true                    # コストマップがロボットのベースフレームと一緒に回転するかどうか
+      width: 3                                # コストマップの幅(m)
+      height: 3                               # コストマップの高さ(m)
+      resolution: 0.05                        # コストマップ1px当たり判定の解像度
+      robot_radius: 0.22                      # ロボット半径
+      plugins: ["voxel_layer", "inflation_layer"]
+      inflation_layer:    #指数関数的減衰でコストマップの致命的な障害物を膨らませます 
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0      # コストマップの障害物判定半径の減衰係数
+        inflation_radius: 0.55        # コストマップの障害物判定半径を追加で膨らませる半径
+      voxel_layer:        # 深度およびレーザー センサーの読み取り値とレイキャスティングを使用して永続的な 3D ボクセル レイヤーを維持し、空き領域をクリアします
+        plugin: "nav2_costmap_2d::VoxelLayer"
+        enabled: True                 # 有効化
+        publish_voxel_map: True       # デバッグ用に3Dボクセルマップを出力するかどうか
+        origin_z: 0.0                 # ボクセルマークの開始位置
+        z_resolution: 0.05            # ボクセル高さの解像度
+        z_voxels: 16                  # ボクセル数？
+        max_obstacle_height: 2.0      # ボクセルマップの最大高さ
+        mark_threshold: 0             # ボクセルの最小数
+        observation_sources: scan     # ボクセル作成用のソース
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0    # ボクセルマップの最大高さ
+          clearing: True              # コストマップでscanをクリアするかどうか
+          marking: True               # scan をマークするかどうか
+          data_type: "LaserScan"      # データタイプ
+      static_layer:
+        map_subscribe_transient_local: True   # マップトピックのQoS設定
+      always_send_full_costmap: True          # 地図の更新周期ごとに完全なコストマップを送信するかどうか
+  local_costmap_client:
+    ros__parameters:
+      use_sim_time: True                      # シミュレーション時間を使用するかどうか
+  local_costmap_rclcpp_node:
+    ros__parameters:
+      use_sim_time: True                      # シミュレーション時間を使用するかどうか
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      use_sim_time: True                      # シミュレーション時間を使用するかどうか
+      robot_radius: 0.22
+      resolution: 0.05
+      track_unknown_space: true               # true:不明なスペースを空き領域として扱わない
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      obstacle_layer:   # レイキャスティングを使用して 2D レーザー スキャンから永続的な 2D コストマップを維持し、空き領域をクリアします
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.55
+      always_send_full_costmap: True
+  global_costmap_client:
+    ros__parameters:
+      use_sim_time: True                            # シミュレーション時間を使用するかどうか
+  global_costmap_rclcpp_node:
+    ros__parameters:
+      use_sim_time: True                            # シミュレーション時間を使用するかどうか
+
+###################################################
+costmap_filter_info_server:                        # コストマップフィルター
+  ros__parameters:                         
+    type: 1                                       # 使用されるコストマップ フィルターのタイプ
+    filter_info_topic: "/costmap_filter_info"     # コストマップフィルター情報を公開するトピック
+    mask_topic: "filter_mask"                     # フィルターマスクを公開するトピック
+    base: 0.0                                     # (OccupancyGrid)マスク値のベース
+    multiplier: 0.25                              # filter_space_value = base + multiplier * mask_value
+
+
+map_saver:
+  ros__parameters:
+    save_map_timeout: 5.0
+    free_thresh_default: 0.25
+    occupied_thresh_default: 0.65
+    map_subscribe_transient_local: True

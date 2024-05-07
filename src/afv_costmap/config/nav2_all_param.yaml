@@ -1,0 +1,456 @@
+##########################################################################
+# Nav2
+# -------------------------------------------
+# github　　: https://github.com/ros-planning/navigation2
+# 公式サイト : https://navigation.ros.org/
+##########################################################################
+
+##########################################################################
+# 使用できるプラグイン
+# 
+# Behavior-Tree Navigator :
+# Costmap2D : 
+#
+#
+#
+##########################################################################
+
+
+"""
+amcl 
+2D レーザー スキャナーを使用して、指定された既知のマップ内のロボットの位置と方向 (つまりポーズ) を推定する確率的位置推定モジュール
+github : https://github.com/ros-planning/navigation2/tree/main/nav2_amcl
+param  : https://navigation.ros.org/configuration/packages/configuring-amcl.html
+
+"""
+
+#############################################################################################
+# local_costmap(ローカルコストマップ)
+# 
+# github : 
+#############################################################################################
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      always_send_full_costmap: True         # 更新ごとに完全なコストマップを送信するかどうか
+      footprint_padding: 0.01                # パッドの設置面積(m)に相当する量
+      #footprint: []
+      global_frame: odom                     # 参照フレーム
+      height: 3                              # コストマップの高さ(m)
+      width: 3                               # コストマップの幅 (m)
+      lethal_cost_threshold: 100             # 致命的な障害物とみなされる占有グリッド マップの最小コスト
+      map_topic: "map"                       # map_server または SLAM からのマップのトピック
+      origin_x : 0.0                         # コストマップのX原点
+      origin_y : 0.0                         # コストマップのY原点
+      publish_frequency: 1.0                 # コストマップをトピックに公開する頻度
+      resolution: 0.1                        # コストマップの 1 ピクセルの解像度 (メートル単位)
+      robot_base_frame: base_link            # ロボットのベースフレーム
+      robot_radius: 0.1                      # フットプリント座標が指定されていない場合に使用するロボットの半径
+      rolling_window: false                  # コストマップをロボットのベース フレームと一緒に回転させるかどうか
+      track_unknown_space: false             # falseの場合は不明なスペースを空きスペースとして扱い、それ以外の場合は不明なスペースとして扱います
+      transform_tolerance: 0.3               # TF変換許容値
+      initial_transform_timeout: 60.0        # ロボットのベース フレームからグローバル フレームへの変換が利用可能になるまで待機する時間です。これを超えると、動作中止されます。
+      trinary_costmap: true                  # 占有グリッド マップを 3 つの値 (空き、占有、不明) のみとして解釈するかどうか？それともその値として扱うか
+      unknown_cost_value: 255                # 未知のスペースを追跡する場合のコスト
+      update_frequency: 5.0                  # コストマップの更新頻度
+      use_maximum: false                     # コストマップを結合して最大コストを使用するかオーバーライドするか?
+
+      #costmapの参照センサ(sourse)
+      observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+
+      ###############################################
+      # Plugin
+      # ---------------------------------------------
+      # “static_layer”
+      # “inflation_layer”
+      # “obstacle_layer”
+      # "voxel_layer"
+      #
+      # "denoise_layer" 
+      ###############################################
+      #plugins: ["static_layer","inflation_layer","obstacle_layer","voxel_layer", "denoise_layer"]
+      plugins: ["static_layer"]
+      
+      ###############################################
+      # Costmap Filters
+      # ---------------------------------------------
+      # Keepout Filter 
+      # Speed Filter 
+      # Binary Filter 
+      ###############################################
+      #filters: ["keepout_filter","speed_filter","binary_filter"]
+      filters: ["keepout_filter"]
+      
+      # static_layer : SLAM またはmap_server(またはその他) からマップを取り込んでコストマップ
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"       # プラグイン
+        enabled: true                                # 有効かどうか
+        subscribe_to_updates: true                   # 最初に受信した後、静的地図の更新を購読します
+        map_subscribe_transient_local: True          # マップ トピックの QoS 設定
+        transform_tolerance : 0.0                    # TF耐性
+        #map_topic : []                              # サブスクライブするマップ トピック。空のままにした場合、マップトピックはデフォルトでcostmap_2d_rosのグローバルmap_topicパラメータになる
+
+      # inflation_layer : 障害物の周囲に指数関数的減衰関数を配置して、衝突近くを通過するコストを増加させる
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"       # プラグイン
+        enabled: true                                   # 有効かどうか
+        inflation_radius: 0.55                          # 致命的な障害物の周囲のコストマップを膨張させる半径
+        cost_scaling_factor: 1.0                        # 膨張半径全体にわたる指数関数的減衰係数
+        inflate_unknown: false                          # 未知のセルを致死的であるかのように膨張させるかどうか
+        inflate_around_unknown: true                    # 未知のセルを膨張させるかどうか
+
+      voxel_layer:
+        plugin: "nav2_costmap_2d::VoxelLayer"           # プラグイン
+        enabled: True                                   # プラグイン
+        footprint_clearing_enabled: true
+        max_obstacle_height: 2.0
+        publish_voxel_map: True
+        origin_z: 0.0
+        z_resolution: 0.05
+        z_voxels: 16
+        max_obstacle_height: 2.0
+        unknown_threshold: 15
+        mark_threshold: 0
+        observation_sources: pointcloud
+        combination_method: 1
+        pointcloud:  # no frame set, uses frame from message
+          topic: /intel_realsense_r200_depth/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        footprint_clearing_enabled: true
+        max_obstacle_height: 2.0
+        combination_method: 1
+        scan:
+          topic: /scan
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+          inf_is_valid: false
+
+      
+
+
+      # ボクセル レイヤーに似た別の3D認識プラグイン
+      # http://wiki.ros.org/pluginlib/
+      rgbd_obstacle_layer:
+        enabled:               true   # レイヤーを有効化するかどうか
+        voxel_decay:           20     # 秒数(線形の場合)または指数関数のn(指数関数の場合)
+        decay_model:           0      # 0=線形、1=指数関数、-1=永続
+        voxel_size:            0.05   # メートル単位のボクセルサイズ
+        track_unknown_space:   true   # デフォルトの空間は未知とする
+        observation_persistence: 0.0  # 秒単位の観測の持続時間
+        max_obstacle_height:   2.0    # メートル単位の最大障害物高さ
+        mark_threshold:        0      # ボクセル高さ
+        update_footprint_enabled: true # フットプリントの更新を有効化
+        combination_method:    1      # 1=最大値、0=上書き
+        obstacle_range:        3.0    # メートル単位の障害物範囲
+        origin_z:              0.0    # メートル単位のz軸原点
+        publish_voxel_map:     true   # デフォルトでオフ、ボクセルマップを公開
+        transform_tolerance:   0.2    # 秒単位の変換許容値
+        mapping_mode:          false  # デフォルトでオフ、ナビゲーション用ではなくマップを保存
+        map_save_duration:     60     # デフォルト60秒、自動保存の間隔
+        observation_sources:   rgbd1_clear rgbd1_mark # 観測ソース
+        rgbd1_mark:
+          data_type: PointCloud2      # データ型
+          topic: camera1/depth/points # トピック
+          marking: true               # マーキングを行う
+          clearing: false             # クリアリングは行わない
+          min_obstacle_height: 0.3    # メートル単位の最小障害物高さ
+          max_obstacle_height: 2.0    # メートル単位の最大障害物高さ  
+          expected_update_rate: 0.0   # この更新レートに満たない場合はバッファから削除
+          observation_persistence: 0.0 # 0=最新、それ以外は指定した時間内の全ての測定値を使用
+          inf_is_valid: false         # レーザスキャンの場合はfalse
+          clear_after_reading: true   # レイヤーが読み込んだ後にバッファをクリア
+          filter: "voxel"             # "voxel"、"passthrough"、またはフィルターなしを指定
+          voxel_min_points: 0         # ボクセルフィルターの最小ポイント数
+        rgbd1_clear:
+          enabled: true               # デフォルトでtrueだが、対応するサービス呼び出しで切り替え可能
+          data_type: PointCloud2
+          topic: camera1/depth/points
+          marking: false              # マーキングは行わない  
+          clearing: true              # クリアリングを行う
+          min_z: 0.1                  # メートル単位の最小z値
+          max_z: 7.0                  # メートル単位の最大z値
+          vertical_fov_angle: 0.7     # ラジアン単位の垂直視野角
+          horizontal_fov_angle: 1.04  # ラジアン単位の水平視野角
+          decay_acceleration: 1.      # 1/s^2、レーザスキャナの場合は0
+          model_type: 0               # 0=深度カメラ、1=3Dライダー
+          
+      # ノイズ除去
+      denoise_layer:
+        plugin: "nav2_costmap_2d::DenoiseLayer"       # ノイズ除去レイヤー
+        enabled: True                                 # 有効かどうか
+        minimal_group_size: 2                         # ノイズとして無視すべき隣接障害物の最小数
+        group_connectivity_type: 8                    # 4 or 8 (4 - 隣接する障害物は水平方向と垂直方向に接続されます,8 - 隣接する障害物は水平、垂直、斜めに接続されます)
+
+     
+      #keep_outゾーンの設定
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: "/costmap_filter_info"
+
+#############################################################################################
+# global_costmap
+# 
+# github : 
+#############################################################################################
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      use_sim_time: True
+      robot_radius: 0.22
+      resolution: 0.05
+      track_unknown_space: true
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      filters: ["keepout_filter","speed_filter"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.55
+      always_send_full_costmap: True
+
+      # ノイズ除去
+      denoise_layer:
+        plugin: "nav2_costmap_2d::DenoiseLayer"       # ノイズ除去レイヤー
+        enabled: True                                 # 有効かどうか
+        minimal_group_size: 2                         # ノイズとして無視すべき隣接障害物の最小数
+        group_connectivity_type: 8                    # 4 or 8 (4 - 隣接する障害物は水平方向と垂直方向に接続されます,8 - 隣接する障害物は水平、垂直、斜めに接続されます)
+
+
+      #keep_outゾーンの設定
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: "/costmap_filter_info"
+
+##############################################################################################################
+# waypoint_follower : ウェイポイント
+# NavigateToPoseアクションサーバーを使用してウェイポイント追跡
+##############################################################################################################
+waypoint_follower:
+  ros__parameters:
+    waypoint_task_executor_plugin: "wait_at_waypoint"    # 
+    stop_on_failure : true                               # 単一のウェイポイントが失敗した場合にアクション タスクを失敗させるかどうか
+    loop_rate : 20                                       # 現在のナビゲーション タスクの結果をチェックするためのレート
+    global_frame_id : "map"                              # robot_localization によって公開されたグローバル座標フレームの名前
+                                                         # GPS ウェイポイントをこのフレームに変換するために gps_waypoint_follower によってのみ使用される
+    #ロボットがウェイポイントに到着したときに実行されるタスクを定義するプラグイン
+    wait_at_waypoint:                                   
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"   # ロボットが各ウェイポイントに到達した後、指定された時間だけ一時停止
+      enabled: True                                      # プラグインが有効かどうか    
+      waypoint_pause_duration: 0                         # 各ウェイポイントに到達した後にロボットがスリープ/待機する時間 (ミリ秒単位)
+
+    #　他のプラグイン
+    # photo_at_waypoint :
+    #   plugin: "nav2_waypoint_follower::PhotoAtWaypoint"  # ウェイポイント到着時に写真を撮るランタイムプラグイン
+    #   enabled: True                                      # プラグインが有効かどうか    
+    #   camera_image_topic_name: “/camera/color/image_raw” # Camera image topic name to susbcribe
+    #   save_images_dir : "/tmp/waypoint_images"           # ウェイポイント到着時に撮影した写真を保存するディレクトリへのパス
+    #   image_format : png                                 # 希望の画像形式
+    
+    # input_at_way_point:                                   
+    #   plugin: "nav2_waypoint_follower::InputAtWaypoint"  # ロボットがウェイポイントでタイムアウト付きで外部入力を待機できるようにする
+    #   enabled: True                                      # プラグインが有効かどうか    
+    #   timeout: 10.0                                      # 次のウェイポイントに移動する前にユーザー入力を待機する時間 (秒)
+    #   input_topic: “input_at_waypoint/input”             # トピック入力は、 std_msgs/Empty内の次のウェイポイントに移動することを示すために公開される
+
+
+#######################################################################################
+# collision_monitor : 衝突監視モニター
+# https://navigation.ros.org/configuration/packages/collision_monitor/configuring-collision-monitor-node.html
+#######################################################################################
+collision_monitor:
+  ros__parameters:
+    base_frame_id: "base_footprint"                                      # ロボットのベースフレーム
+    odom_frame_id: "odom"                                                # オドメトリに使用するフレーム
+    cmd_vel_in_topic: "cmd_vel_smoothed"                                 # 受け取る速度トピック名(干渉チェック前)
+    cmd_vel_out_topic: "cmd_vel"                                         # 干渉チェック後の速度トピック名
+    state_topic: "collision_monitor_state"                               # 現在アクティブになっているポリゴンアクションのタイプと名前を出力する
+    transform_tolerance: 0.5                                             # 発行されるトランスフォームをポストデートする時間
+    source_timeout: 5.0                                                  # タイムアウト(ソースデータが有効であるとみなされる最大時間間隔。この間隔内に新しいデータを受信しない場合、ロボットは停止)
+    base_shift_correction: True                                          # 現在時刻と最新のソース時刻の差を考慮して、ソース データをベース フレームの動きに合わせて修正するかどうか
+    stop_pub_timeout: 2.0                                                # タイムアウト
+    enable_stamped_cmd_vel: False                                        # True : geometry_msgs::msg::TwistStamped False : geometry_msgs::msg::Twistを発行
+    use_realtime_priority: false                                         # スケジュール期限に間に合わせることでループレートの欠落が少なくなる
+    polygons: ["PolygonStop", "PolygonSlow", "FootprintApproach"]        # [追加する衝突ボックス] PolygonStop : 停止ボックス,PolygonSlow : 減速境界ボックス
+    # polygons: ["VelocityPolygonStop"]
+
+    PolygonStop:
+      type: "circle"                                                     # 多角形の形状のタイプ(ポリゴン or 円),ここは円を選択
+      radius: 0.3                                                        # 半径
+      # type: "polygon"                                                  # ポリゴンの場合
+      # points: "[[0.4, 0.3], [0.4, -0.3], [0.0, -0.3], [0.0, 0.3]]"     # 頂点(最低3点)
+      action_type: "stop"                                                # ゾーン動作モデル(stop or slow or downlimit or approach)
+      min_points: 4                                                      # 障害物を検出するためにポイントの最小数(この値を大きくすると、ノイズの影響を受けにくくなりますが、小さな障害物を見落とす可能性がある)
+      # polygon_sub_topic : "robot_polygon"                              # ポリゴンポイントをリッスンするトピック名(pointsと の両方polygon_sub_topicを指定した場合は、静的がpoints優先)
+      # footprint_topic : base_footprint                                 # ロボットの足跡をリッスンするトピック名(pointsと の両方footprint_topicを指定した場合は、静的がpoints優先)
+      # polygon_subscribe_transient_local ; false                        # 受信ポリゴンまたはフットプリントトピックサブスクリプションのQoS耐久性設定。
+      slowdown_ratio: 0.5                                                # ロボットの速度の低下割合(実際の速度の割合),limitアクションタイプに適用
+      linear_limit:  0.5                                                 # ロボットの直線速度制限,limitアクションタイプに適用
+      angular_limit:  0.5                                                # ロボットの角速度制限,limitアクションタイプに適用
+      time_before_collision: 2.0                                         # 衝突するまでの時間 (秒単位)。衝突予測に使用される最大シミュレーション時間。値が大きいほど、パフォーマンスが低下  
+      simulation_time_step: 0.1                                          # 衝突予測中のロボット動作シミュレーションの時間反復ステップ。値が大きいほど、予測精度は低いが、パフォーマンスは向上
+      visualize: True                                                    # ポリゴンを別のトピックで公開するか？
+      polygon_pub_topic: "polygon_stop"                                  # ポリゴンをパブリッシュするトピック名、visualizeのとき使用
+      enabled: True                                                      # このポリゴンを衝突監視に使用するかどうか
+    
+    PolygonSlow:                                                         
+      # type: "circle"                                                    
+      # radius: 0.3                                                      
+      type: "polygon"                                                    
+      points: "[[1.0, 1.0], [1.0, -1.0], [-0.5, -1.0], [-0.5, 1.0]]"     
+      action_type: "slowdown"                                             
+      min_points: 4                                                      
+      slowdown_ratio: 0.3                                                 
+      visualize: True                                                     
+      polygon_pub_topic: "polygon_slowdown"                               
+      enabled: True                                                      
+    
+    #  
+    PolygonLimit:                                                        
+      type: "polygon"                                                    
+      points: "[[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]]"      
+      action_type: "limit"                                                
+      min_points: 4                                                      
+      linear_limit: 0.4                                                   
+      angular_limit: 0.5                                                  
+      visualize: True                                                      
+      polygon_pub_topic: "polygon_limit"                                  
+      enabled: True                                                       
+
+    # 
+    FootprintApproach: 
+      type: "polygon"                                                     
+      action_type: "approach"                                             
+      footprint_topic: "/local_costmap/published_footprint"               
+      time_before_collision: 2.0                                          
+      simulation_time_step: 0.02                                          
+      min_points: 6                                                      
+      visualize: False                                                    
+      enabled: True                                                       
+    
+    # 速度に基づいてポリゴンを切り替えることができます
+    # たとえば、0.5 m/s で移動するときよりも 1.0 m/s で移動するときのほうがより大きな安全ゾーンを持つ
+    VelocityPolygonStop:
+      type: "velocity_polygon"                                           # 多角形の形状のタイプ
+      action_type: "stop"                                                # ゾーン動作モデル
+      min_points: 6                                                      # 障害物を検出するためにポイントの最小数 
+      visualize: True                                                    # ポリゴンを別のトピックで公開するか？
+      enabled: True                                                      # このポリゴンを衝突監視に使用するかどうか
+      polygon_pub_topic: "velocity_polygon_stop"                         # ポリゴンをパブリッシュするトピック名、visualizeのとき使用
+      velocity_polygons: ["rotation", "translation_forward", "translation_backward", "stopped"]  #ロボットの現在速度に基づいて切り替えるサブポリゴンのリスト 
+      holonomic: false                                                   # 衝突予測にホロノミックロボットモデルを使用するか
+      
+      rotation:           
+        points: "[[0.3, 0.3], [0.3, -0.3], [-0.3, -0.3], [-0.3, 0.3]]"   # 四つの頂点
+        linear_min: 0.0                                                  # 最大並進速度 
+        linear_max: 0.05                                                 # 最小並進速度   
+        theta_min: -1.0                                                  # 最大回転速度        
+        theta_max: 1.0                                                   # 最小回転速度
+        # direction_start_angle: 3.14                                    # 移動方向の開始角度(ホロミックロボットのみ)
+        # direction_end_angle: 3.14                                      # 移動方向の終了角度(ホロミックロボットのみ)                                     
+
+      # 以下同意
+      translation_forward:
+        points: "[[0.35, 0.3], [0.35, -0.3], [-0.2, -0.3], [-0.2, 0.3]]" 
+        linear_min: 0.0                                                   
+        linear_max: 1.0                                                   
+        theta_min: -1.0           
+        theta_max: 1.0            
+      
+      translation_backward:
+        points: "[[0.2, 0.3], [0.2, -0.3], [-0.35, -0.3], [-0.35, 0.3]]"          
+        linear_min: -1.0            
+        linear_max: 0.0            
+        theta_min: -1.0                      
+        theta_max: 1.0      
+
+      stopped:
+        points: "[[0.25, 0.25], [0.25, -0.25], [-0.25, -0.25], [-0.25, 0.25]]"            
+        linear_min: -1.0            
+        linear_max: 1.0           
+        theta_min: -1.0            
+        theta_max: 1.0            
+
+    # 衝突を監視するために、少なくとも1つのデータソースを追加
+    # 指定可能なセンサーは、以下になります。
+    # Laser scanners (sensor_msgs::msg::LaserScan messages)
+    # PointClouds (sensor_msgs::msg::PointCloud2 messages)
+    # IR/Sonars (sensor_msgs::msg::Range messages)
+    observation_sources: ["scan", "pointcloud"]                         # 監視するためのソース
+    scan:
+      type: "scan"                                                      # センサタイプ
+      topic: "/scan"                                                    # 受け取るトピック名
+      source_timeout: 0.2                                               # ソースデータを有効とする最大時間間隔
+      enabled: True                                                     # このソースを衝突監視に使用するかどうか
+
+    pointcloud:
+      type: "pointcloud"                                                # センサタイプ
+      topic: "/intel_realsense_r200_depth/points"                       # 受け取るトピック名 
+      source_timeout: 0.2                                               # ソースデータを有効とする最大時間間隔
+      enabled: True                                                     # このソースを衝突監視に使用するかどうか
+      min_height: 0.1                                                   # 見る最小高さ(pointcloudのみ)
+      max_height: 0.5                                                   # 見る最大高さ(pointcloudのみ)
+
+    # range:
+    #   type: "pointcloud"                                                # センサタイプ
+    #   topic: "/intel_realsense_r200_depth/points"                       # 受け取るトピック名 
+    #   source_timeout: 0.2                                               # ソースデータを有効とする最大時間間隔
+    #   obstacles_angle: 1                                                # 範囲円弧上の近くの障害物点間の角度増分
+    #   enabled : True                                                    # このソースを衝突監視に使用するかどうか
+
+###################################################
+# 0: キープアウトゾーン/優先レーンフィルター
+# 1: 速度フィルター、速度制限は最大速度の % で指定されます
+# 2: 速度フィルター、速度制限は絶対値 (m/s) で指定されます
+# 3: バイナリフィルター
+###################################################
+costmap_filter_info_server:                        # コストマップフィルター
+  ros__parameters:                         
+    type: 1                                       # 使用されるコストマップ フィルターのタイプ
+    filter_info_topic: "/costmap_filter_info"     # コストマップフィルター情報を公開するトピック
+    mask_topic: "filter_mask"                     # フィルターマスクを公開するトピック
+    base: 0.0                                     # (OccupancyGrid)マスク値のベース
+    multiplier: 0.25                              # filter_space_value = base + multiplier * mask_value
